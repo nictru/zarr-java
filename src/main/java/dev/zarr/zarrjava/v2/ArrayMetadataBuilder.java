@@ -8,6 +8,7 @@ import dev.zarr.zarrjava.utils.Utils;
 import dev.zarr.zarrjava.v2.codec.Codec;
 import dev.zarr.zarrjava.v2.codec.core.BloscCodec;
 import dev.zarr.zarrjava.v2.codec.core.ZlibCodec;
+import dev.zarr.zarrjava.v2.codec.core.VLenUtf8Codec;
 import dev.zarr.zarrjava.v2.codec.core.ZstdCodec;
 
 public class ArrayMetadataBuilder {
@@ -136,7 +137,17 @@ public class ArrayMetadataBuilder {
         return this;
     }
 
-    public  ArrayMetadataBuilder withZstdCompressor(int level) {
+    public ArrayMetadataBuilder withFilters(Codec... filters) {
+        this.filters = filters;
+        return this;
+    }
+
+    public ArrayMetadataBuilder withVLenUtf8Filter() {
+        this.filters = new Codec[]{new VLenUtf8Codec()};
+        return this;
+    }
+
+    public ArrayMetadataBuilder withZstdCompressor(int level) {
         return withZstdCompressor(level, ZstdCodec.DEFAULT_CHECKSUM);
     }
 

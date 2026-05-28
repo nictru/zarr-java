@@ -14,6 +14,7 @@ import ucar.ma2.Array;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Arrays;
 
 
 public class ArrayMetadata extends dev.zarr.zarrjava.core.ArrayMetadata {
@@ -116,6 +117,12 @@ public class ArrayMetadata extends dev.zarr.zarrjava.core.ArrayMetadata {
 
     @Override
     public Array allocateFillValueChunk() {
+        if (dataType == DataType.OBJECT) {
+            String fillValueString = parsedFillValue instanceof String ? (String) parsedFillValue : "";
+            String[] values = new String[coreArrayMetadata.chunkSize()];
+            Arrays.fill(values, fillValueString);
+            return Array.makeObjectArray(dataType.getMA2DataType(), String.class, chunks, values);
+        }
         Array outputArray = Array.factory(dataType.getMA2DataType(), chunks);
         if (parsedFillValue != null) MultiArrayUtils.fill(outputArray, parsedFillValue);
         return outputArray;

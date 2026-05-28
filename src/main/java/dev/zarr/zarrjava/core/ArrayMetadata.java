@@ -41,6 +41,7 @@ public abstract class ArrayMetadata {
         boolean dataTypeIsLong = dataType == dev.zarr.zarrjava.v3.DataType.INT64 || dataType == dev.zarr.zarrjava.v2.DataType.INT64 || dataType == dev.zarr.zarrjava.v2.DataType.INT64_BE || dataType == dev.zarr.zarrjava.v3.DataType.UINT64 || dataType == dev.zarr.zarrjava.v2.DataType.UINT64 || dataType == dev.zarr.zarrjava.v2.DataType.UINT64_BE;
         boolean dataTypeIsFloat = dataType == dev.zarr.zarrjava.v3.DataType.FLOAT32 || dataType == dev.zarr.zarrjava.v2.DataType.FLOAT32 || dataType == dev.zarr.zarrjava.v2.DataType.FLOAT32_BE;
         boolean dataTypeIsDouble = dataType == dev.zarr.zarrjava.v3.DataType.FLOAT64 || dataType == dev.zarr.zarrjava.v2.DataType.FLOAT64 || dataType == dev.zarr.zarrjava.v2.DataType.FLOAT64_BE;
+        boolean dataTypeIsObject = dataType == dev.zarr.zarrjava.v2.DataType.OBJECT;
 
         if (fillValue instanceof Boolean) {
             Boolean fillValueBool = (Boolean) fillValue;
@@ -68,6 +69,9 @@ public abstract class ArrayMetadata {
             // Fallback to throwing below
         } else if (fillValue instanceof String) {
             String fillValueString = (String) fillValue;
+            if (dataTypeIsObject) {
+                return fillValueString;
+            }
             if (fillValueString.equals("NaN")) {
                 if (dataTypeIsFloat) {
                     return Float.NaN;
@@ -176,6 +180,9 @@ public abstract class ArrayMetadata {
         }
 
         public int chunkByteLength() {
+            if (this.dataType == dev.zarr.zarrjava.v2.DataType.OBJECT) {
+                return 0;
+            }
             return this.dataType.getByteCount() * chunkSize();
         }
 
