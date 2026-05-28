@@ -7,6 +7,7 @@ import dev.zarr.zarrjava.store.FilesystemStore;
 import dev.zarr.zarrjava.store.MemoryStore;
 import dev.zarr.zarrjava.store.StoreHandle;
 import dev.zarr.zarrjava.v2.*;
+import dev.zarr.zarrjava.v2.codec.core.VLenUtf8Codec;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -600,5 +601,63 @@ public class ZarrV2Test extends ZarrTest {
         Array reopenedArray = Array.open(storeHandle);
         ucar.ma2.Array readData = reopenedArray.read();
         assertIsTestdata(readData, dataType);
+    }
+
+    @Test
+    public void testObjectDtypeMetadataParsing() throws IOException, ZarrException {
+        StoreHandle storeHandle = new FilesystemStore(TESTDATA).resolve("anndata_vlen", "obs", "_index");
+        Array array = Array.open(storeHandle);
+        Assertions.assertEquals(DataType.OBJECT, array.metadata().dataType);
+        Assertions.assertEquals("", array.metadata().parsedFillValue());
+        Assertions.assertEquals(1, array.metadata().filters.length);
+        Assertions.assertInstanceOf(VLenUtf8Codec.class, array.metadata().filters[0]);
+    }
+
+    @Test
+    public void testReadAnnDataObsIndex() throws IOException, ZarrException {
+        StoreHandle storeHandle = new FilesystemStore(TESTDATA).resolve("anndata_vlen", "obs", "_index");
+        Array array = Array.open(storeHandle);
+        ucar.ma2.Array data = array.read();
+        Assertions.assertEquals(20, data.getSize());
+
+        Object[] values = (Object[]) data.get1DJavaArray(ucar.ma2.DataType.OBJECT);
+        for (int i = 0; i < values.length; i++) {
+            Assertions.assertEquals("cell_" + i, values[i]);
+        }
+    }
+
+    @Test
+    public void testReadAnnDataCategoricalCategories() throws IOException, ZarrException {
+        StoreHandle storeHandle = new FilesystemStore(TESTDATA).resolve("anndata_vlen", "obs", "cluster", "categories");
+        Array array = Array.open(storeHandle);
+        ucar.ma2.Array data = array.read();
+        Object[] values = (Object[]) data.get1DJavaArray(ucar.ma2.DataType.OBJECT);
+        Assertions.assertArrayEquals(new Object[]{"A", "B", "C"}, values);
+    }
+
+    @Test
+    public void testCreateObjectVlenRoundTrip() throws IOException, ZarrException {
+        StoreHandle storeHandle = new FilesystemStore(TESTOUTPUT).resolve("v2_object_vlen_roundtrip");
+        String[] original = {"one", "two", "three"};
+
+        Array array = Array.create(
+                storeHandle,
+                Array.metadataBuilder()
+                        .withShape(original.length)
+                        .withDataType(DataType.OBJECT)
+                        .withChunks(original.length)
+                        .withFillValue("")
+                        .withVLenUtf8Filter()
+                        .withBloscCompressor()
+                        .build()
+        );
+
+        ucar.ma2.Array input = ucar.ma2.Array.makeObjectArray(
+                ucar.ma2.DataType.OBJECT, String.class, new int[]{original.length}, original);
+        array.write(input);
+
+        ucar.ma2.Array output = Array.open(storeHandle).read();
+        Object[] decoded = (Object[]) output.get1DJavaArray(ucar.ma2.DataType.OBJECT);
+        Assertions.assertArrayEquals(original, decoded);
     }
 }

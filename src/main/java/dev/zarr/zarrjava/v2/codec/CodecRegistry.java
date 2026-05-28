@@ -2,6 +2,7 @@ package dev.zarr.zarrjava.v2.codec;
 
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import dev.zarr.zarrjava.v2.codec.core.BloscCodec;
+import dev.zarr.zarrjava.v2.codec.core.VLenUtf8Codec;
 import dev.zarr.zarrjava.v2.codec.core.ZlibCodec;
 import dev.zarr.zarrjava.v2.codec.core.ZstdCodec;
 
@@ -16,6 +17,7 @@ public class CodecRegistry {
         addType("blosc", BloscCodec.class);
         addType("zlib", ZlibCodec.class);
         addType("zstd", ZstdCodec.class);
+        addType("vlen-utf8", VLenUtf8Codec.class);
     }
 
     public static void addType(String name, Class<? extends Codec> codecClass) {

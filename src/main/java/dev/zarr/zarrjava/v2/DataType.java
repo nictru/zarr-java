@@ -21,7 +21,8 @@ public enum DataType implements dev.zarr.zarrjava.core.DataType {
     UINT32_BE("u4", Endianness.BIG),
     UINT64_BE("u8", Endianness.BIG),
     FLOAT32_BE("f4", Endianness.BIG),
-    FLOAT64_BE("f8", Endianness.BIG);
+    FLOAT64_BE("f8", Endianness.BIG),
+    OBJECT("O", Endianness.UNSPECIFIED);
 
     private final String dtype;
     private final Endianness endianness;
@@ -74,6 +75,8 @@ public enum DataType implements dev.zarr.zarrjava.core.DataType {
             case FLOAT64:
             case FLOAT64_BE:
                 return ucar.ma2.DataType.DOUBLE;
+            case OBJECT:
+                return ucar.ma2.DataType.OBJECT;
             default:
                 throw new RuntimeException("Unreachable");
         }
@@ -81,6 +84,9 @@ public enum DataType implements dev.zarr.zarrjava.core.DataType {
 
     @Override
     public int getByteCount() {
+        if (this == OBJECT) {
+            return 1;
+        }
         return Integer.parseInt(dtype.substring(1));
     }
 

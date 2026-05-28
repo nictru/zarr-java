@@ -13,6 +13,7 @@ import dev.zarr.zarrjava.store.StoreHandle;
 import dev.zarr.zarrjava.utils.Utils;
 import dev.zarr.zarrjava.v2.codec.Codec;
 import dev.zarr.zarrjava.v2.codec.core.BytesCodec;
+import dev.zarr.zarrjava.v2.codec.core.VLenUtf8Codec;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,12 +35,28 @@ public class Array extends dev.zarr.zarrjava.core.Array implements Node {
     protected Array(StoreHandle storeHandle, ArrayMetadata arrayMetadata) throws IOException, ZarrException {
         super(storeHandle);
         this.metadata = arrayMetadata;
+        Codec[] arrayToBytesCodecs = buildArrayToBytesCodecs(arrayMetadata);
         this.codecPipeline = new CodecPipeline(Utils.concatArrays(
                 new Codec[]{},
-                metadata.filters == null ? new Codec[]{} : metadata.filters,
-                new Codec[]{new BytesCodec(arrayMetadata.endianness.toEndian())},
+                arrayToBytesCodecs,
                 metadata.compressor == null ? new Codec[]{} : new Codec[]{metadata.compressor}
         ), metadata.coreArrayMetadata);
+    }
+
+    private static Codec[] buildArrayToBytesCodecs(ArrayMetadata arrayMetadata) throws ZarrException {
+        Codec[] filters = arrayMetadata.filters == null ? new Codec[]{} : arrayMetadata.filters;
+        if (arrayMetadata.dataType == DataType.OBJECT) {
+            if (filters.length != 1 || !(filters[0] instanceof VLenUtf8Codec)) {
+                throw new ZarrException(
+                        "Object dtype arrays require a single vlen-utf8 filter, got "
+                                + filters.length + " filter(s).");
+            }
+            return filters;
+        }
+        return Utils.concatArrays(
+                filters,
+                new Codec[]{new BytesCodec(arrayMetadata.endianness.toEndian())}
+        );
     }
 
     /**
