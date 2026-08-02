@@ -47,3 +47,6 @@ build/
 /uv.lock
 **/__pycache__
 /dependency-reduced-pom.xml
+
+### Gradle ###
+.gradle/
