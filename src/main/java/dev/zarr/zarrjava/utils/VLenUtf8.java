@@ -1,6 +1,8 @@
 package dev.zarr.zarrjava.utils;
 
 import dev.zarr.zarrjava.ZarrException;
+import ucar.ma2.Array;
+import ucar.ma2.IndexIterator;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -43,6 +45,22 @@ public final class VLenUtf8 {
         if (numItems != expectedLength) {
             throw new ZarrException(
                     "Expected " + expectedLength + " vlen-utf8 values but decoded " + numItems);
+        }
+        return values;
+    }
+
+    /**
+     * Collects the elements of a (possibly sectioned) String array in logical C order.
+     */
+    public static String[] toStrings(Array array) throws ZarrException {
+        String[] values = new String[(int) array.getSize()];
+        IndexIterator iterator = array.getIndexIterator();
+        for (int i = 0; i < values.length; i++) {
+            Object value = iterator.getObjectNext();
+            if (!(value instanceof String)) {
+                throw new ZarrException("vlen-utf8 expects String elements, got " + value + " at index " + i);
+            }
+            values[i] = (String) value;
         }
         return values;
     }

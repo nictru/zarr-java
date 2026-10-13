@@ -29,15 +29,7 @@ public class VLenUtf8Codec extends ArrayBytesCodec implements Codec {
         if (chunkArray.getElementType() != String.class) {
             throw new ZarrException("VLenUtf8Codec expects String elements, got " + chunkArray.getElementType());
         }
-        String[] values = new String[(int) chunkArray.getSize()];
-        for (int i = 0; i < values.length; i++) {
-            Object value = chunkArray.getObject(i);
-            if (!(value instanceof String)) {
-                throw new ZarrException("VLenUtf8Codec expects String elements at index " + i);
-            }
-            values[i] = (String) value;
-        }
-        return ByteBuffer.wrap(VLenUtf8.encode(values));
+        return ByteBuffer.wrap(VLenUtf8.encode(VLenUtf8.toStrings(chunkArray)));
     }
 
     @Override

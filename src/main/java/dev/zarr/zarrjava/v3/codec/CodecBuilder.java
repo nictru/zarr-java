@@ -171,6 +171,11 @@ public class CodecBuilder extends dev.zarr.zarrjava.core.codec.CodecBuilder {
         return this;
     }
 
+    public CodecBuilder withVLenUtf8() {
+        codecs.add(new VLenUtf8Codec());
+        return this;
+    }
+
     private void autoInsertBytesCodec() {
         if (codecs.stream().noneMatch(c -> c instanceof ArrayBytesCodec)) {
             Codec[] arrayArrayCodecs = codecs.stream().filter(c -> c instanceof ArrayArrayCodec)
@@ -179,7 +184,11 @@ public class CodecBuilder extends dev.zarr.zarrjava.core.codec.CodecBuilder {
                     .toArray(Codec[]::new);
             this.codecs = new ArrayList<>();
             Collections.addAll(this.codecs, arrayArrayCodecs);
-            this.codecs.add(new BytesCodec(new BytesCodec.Configuration(Endian.LITTLE)));
+            if (dataType == DataType.STRING) {
+                this.codecs.add(new VLenUtf8Codec());
+            } else {
+                this.codecs.add(new BytesCodec(new BytesCodec.Configuration(Endian.LITTLE)));
+            }
             Collections.addAll(this.codecs, bytesBytesCodecs);
         }
     }

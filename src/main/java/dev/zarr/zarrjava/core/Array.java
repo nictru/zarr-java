@@ -394,7 +394,7 @@ public abstract class Array extends AbstractNode {
             return readChunk(IndexingUtils.computeSingleChunkCoords(offset, chunkShape));
         }
 
-        final ucar.ma2.Array outputArray = ucar.ma2.Array.factory(metadata.dataType().getMA2DataType(),
+        final ucar.ma2.Array outputArray = MultiArrayUtils.allocate(metadata.dataType().getMA2DataType(),
                 Utils.toIntArray(shape));
         final Object parsedFillValue = metadata.parsedFillValue();
         if (parsedFillValue != null) {

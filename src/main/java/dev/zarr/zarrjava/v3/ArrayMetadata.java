@@ -5,11 +5,13 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.zarr.zarrjava.ZarrException;
 import dev.zarr.zarrjava.core.Attributes;
+import dev.zarr.zarrjava.core.codec.ArrayBytesCodec;
 import dev.zarr.zarrjava.v3.chunkgrid.ChunkGrid;
 import dev.zarr.zarrjava.v3.chunkgrid.RegularChunkGrid;
 import dev.zarr.zarrjava.v3.chunkkeyencoding.ChunkKeyEncoding;
 import dev.zarr.zarrjava.v3.codec.Codec;
 import dev.zarr.zarrjava.v3.codec.core.ShardingIndexedCodec;
+import dev.zarr.zarrjava.v3.codec.core.VLenUtf8Codec;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -114,6 +116,7 @@ public final class ArrayMetadata extends dev.zarr.zarrjava.core.ArrayMetadata {
                 shardingCodec = getShardingIndexedCodec(shardingConfig.codecs);
             }
         }
+        validateStringCodecs(dataType, codecs);
         this.chunkGrid = chunkGrid;
         this.dataType = dataType;
         this.coreArrayMetadata =
@@ -127,6 +130,26 @@ public final class ArrayMetadata extends dev.zarr.zarrjava.core.ArrayMetadata {
         this.dimensionNames = dimensionNames;
         this.attributes = attributes;
         this.storageTransformers = storageTransformers;
+    }
+
+    private static void validateStringCodecs(DataType dataType, Codec[] codecs) throws ZarrException {
+        if (codecs == null) {
+            return;
+        }
+        for (Codec codec : codecs) {
+            if (!(codec instanceof ArrayBytesCodec)) {
+                continue;
+            }
+            boolean isVLenUtf8 = codec instanceof VLenUtf8Codec;
+            if (dataType == DataType.STRING && !isVLenUtf8 && !(codec instanceof ShardingIndexedCodec)) {
+                throw new ZarrException("Data type 'string' requires the 'vlen-utf8' codec, got '"
+                        + codec.getClass().getSimpleName() + "'.");
+            }
+            if (dataType != DataType.STRING && isVLenUtf8) {
+                throw new ZarrException("The 'vlen-utf8' codec requires data type 'string', got '"
+                        + dataType.getValue() + "'.");
+            }
+        }
     }
 
     public static Optional<Codec> getShardingIndexedCodec(Codec[] codecs) {

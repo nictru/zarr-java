@@ -1,5 +1,6 @@
 package dev.zarr.zarrjava.v3;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum DataType implements dev.zarr.zarrjava.core.DataType {
@@ -19,7 +20,17 @@ public enum DataType implements dev.zarr.zarrjava.core.DataType {
     FLOAT64(
             "float64",
             8
-    );
+    ),
+    /**
+     * Variable-length UTF-8 strings, as written by zarr-python 3 (and AnnData). Elements have no fixed
+     * size; the reported byte count of 1 only serves codecs that need a nominal element size.
+     */
+    STRING("string", 1);
+
+    /**
+     * Older zarr-python 3 releases wrote string arrays with this data type name.
+     */
+    private static final String STRING_LEGACY_ALIAS = "vlen-utf8";
 
     private final String dtype;
     private final int byteCount;
@@ -27,6 +38,19 @@ public enum DataType implements dev.zarr.zarrjava.core.DataType {
     DataType(String dtype, int byteCount) {
         this.dtype = dtype;
         this.byteCount = byteCount;
+    }
+
+    @JsonCreator
+    public static DataType fromValue(String value) {
+        if (STRING_LEGACY_ALIAS.equals(value)) {
+            return STRING;
+        }
+        for (DataType dataType : values()) {
+            if (dataType.dtype.equals(value)) {
+                return dataType;
+            }
+        }
+        throw new IllegalArgumentException("Unknown data type '" + value + "'.");
     }
 
     @JsonValue
@@ -62,6 +86,8 @@ public enum DataType implements dev.zarr.zarrjava.core.DataType {
                 return ucar.ma2.DataType.FLOAT;
             case FLOAT64:
                 return ucar.ma2.DataType.DOUBLE;
+            case STRING:
+                return ucar.ma2.DataType.OBJECT;
             default:
                 throw new IllegalStateException("Unknown DataType: " + this);
         }

@@ -41,7 +41,7 @@ public abstract class ArrayMetadata {
         boolean dataTypeIsLong = dataType == dev.zarr.zarrjava.v3.DataType.INT64 || dataType == dev.zarr.zarrjava.v2.DataType.INT64 || dataType == dev.zarr.zarrjava.v2.DataType.INT64_BE || dataType == dev.zarr.zarrjava.v3.DataType.UINT64 || dataType == dev.zarr.zarrjava.v2.DataType.UINT64 || dataType == dev.zarr.zarrjava.v2.DataType.UINT64_BE;
         boolean dataTypeIsFloat = dataType == dev.zarr.zarrjava.v3.DataType.FLOAT32 || dataType == dev.zarr.zarrjava.v2.DataType.FLOAT32 || dataType == dev.zarr.zarrjava.v2.DataType.FLOAT32_BE;
         boolean dataTypeIsDouble = dataType == dev.zarr.zarrjava.v3.DataType.FLOAT64 || dataType == dev.zarr.zarrjava.v2.DataType.FLOAT64 || dataType == dev.zarr.zarrjava.v2.DataType.FLOAT64_BE;
-        boolean dataTypeIsObject = dataType == dev.zarr.zarrjava.v2.DataType.OBJECT;
+        boolean dataTypeIsObject = dataType == dev.zarr.zarrjava.v2.DataType.OBJECT || dataType == dev.zarr.zarrjava.v3.DataType.STRING;
 
         if (fillValue instanceof Boolean) {
             Boolean fillValueBool = (Boolean) fillValue;
@@ -179,14 +179,25 @@ public abstract class ArrayMetadata {
                     .reduce(1, (acc, a) -> acc * a);
         }
 
+        private boolean isStringDataType() {
+            return this.dataType == dev.zarr.zarrjava.v2.DataType.OBJECT
+                    || this.dataType == dev.zarr.zarrjava.v3.DataType.STRING;
+        }
+
         public int chunkByteLength() {
-            if (this.dataType == dev.zarr.zarrjava.v2.DataType.OBJECT) {
+            if (isStringDataType()) {
                 return 0;
             }
             return this.dataType.getByteCount() * chunkSize();
         }
 
         public ucar.ma2.Array allocateFillValueChunk() {
+            if (isStringDataType()) {
+                String fillValueString = parsedFillValue instanceof String ? (String) parsedFillValue : "";
+                String[] values = new String[chunkSize()];
+                Arrays.fill(values, fillValueString);
+                return ucar.ma2.Array.makeObjectArray(ucar.ma2.DataType.OBJECT, String.class, chunkShape, values);
+            }
             ucar.ma2.Array outputArray = ucar.ma2.Array.factory(dataType.getMA2DataType(), chunkShape);
             MultiArrayUtils.fill(outputArray, parsedFillValue);
             return outputArray;

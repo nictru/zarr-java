@@ -13,6 +13,7 @@ import dev.zarr.zarrjava.v3.chunkkeyencoding.V2ChunkKeyEncoding;
 import dev.zarr.zarrjava.v3.codec.Codec;
 import dev.zarr.zarrjava.v3.codec.CodecBuilder;
 import dev.zarr.zarrjava.v3.codec.core.BytesCodec;
+import dev.zarr.zarrjava.v3.codec.core.VLenUtf8Codec;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +29,8 @@ public class ArrayMetadataBuilder {
 
     Object fillValue = 0;
     Codec[] codecs = new Codec[]{new BytesCodec(Endian.LITTLE)};
+    boolean fillValueSet = false;
+    boolean codecsSet = false;
     Attributes attributes = new Attributes();
     Map<String, Object>[] storageTransformers = new HashMap[]{};
     String[] dimensionNames = null;
@@ -47,6 +50,8 @@ public class ArrayMetadataBuilder {
         builder.chunkKeyEncoding = arrayMetadata.chunkKeyEncoding;
         builder.fillValue = arrayMetadata.parsedFillValue;
         builder.codecs = arrayMetadata.codecs;
+        builder.fillValueSet = true;
+        builder.codecsSet = true;
         builder.dimensionNames = arrayMetadata.dimensionNames;
         builder.storageTransformers = arrayMetadata.storageTransformers;
         if (withAttributes) {
@@ -113,11 +118,13 @@ public class ArrayMetadataBuilder {
 
     public ArrayMetadataBuilder withFillValue(Object fillValue) {
         this.fillValue = fillValue;
+        this.fillValueSet = true;
         return this;
     }
 
     public ArrayMetadataBuilder withCodecs(Codec... codecs) {
         this.codecs = codecs;
+        this.codecsSet = true;
         return this;
     }
 
@@ -128,6 +135,7 @@ public class ArrayMetadataBuilder {
         CodecBuilder nestedCodecBuilder = new CodecBuilder(dataType);
         this.codecs = codecBuilder.apply(nestedCodecBuilder)
                 .build();
+        this.codecsSet = true;
         return this;
     }
 
@@ -169,6 +177,15 @@ public class ArrayMetadataBuilder {
             chunkGrid = new RegularChunkGrid(new RegularChunkGrid.Configuration(defaultChunks));
         }
         
+        if (dataType == DataType.STRING) {
+            if (!fillValueSet) {
+                fillValue = "";
+            }
+            if (!codecsSet) {
+                codecs = new Codec[]{new VLenUtf8Codec()};
+            }
+        }
+
         return new ArrayMetadata(shape, dataType, chunkGrid, chunkKeyEncoding, fillValue, codecs,
                 dimensionNames,
                 attributes,

@@ -186,7 +186,7 @@ public class ShardingIndexedCodec extends ArrayBytesCodec.WithPartialDecode impl
     ) throws ZarrException {
         final ArrayMetadata.CoreArrayMetadata shardMetadata = codecPipeline.arrayMetadata;
 
-        final Array outputArray = Array.factory(arrayMetadata.dataType.getMA2DataType(), shape);
+        final Array outputArray = MultiArrayUtils.allocate(arrayMetadata.dataType.getMA2DataType(), shape);
         final int shardIndexByteLength = (int) getShardIndexSize(arrayMetadata);
         ByteBuffer shardIndexBytes;
         if (this.configuration.indexLocation.equals("start")) {

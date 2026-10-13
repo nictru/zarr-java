@@ -11,6 +11,19 @@ import java.util.Arrays;
 
 public class MultiArrayUtils {
 
+    /**
+     * Like {@link Array#factory(ucar.ma2.DataType, int[])}, but also supports
+     * {@link ucar.ma2.DataType#OBJECT}, which is allocated as a String array (the only object
+     * element type Zarr supports).
+     */
+    public static Array allocate(ucar.ma2.DataType dataType, int[] shape) {
+        if (dataType == ucar.ma2.DataType.OBJECT) {
+            int size = Arrays.stream(shape).reduce(1, (acc, a) -> acc * a);
+            return Array.makeObjectArray(dataType, String.class, shape, new String[size]);
+        }
+        return Array.factory(dataType, shape);
+    }
+
     public static void copyRegion(Array source, int[] sourceOffset, Array target, int[] targetOffset,
                                   int[] shape) {
         if (sourceOffset.length != targetOffset.length) {

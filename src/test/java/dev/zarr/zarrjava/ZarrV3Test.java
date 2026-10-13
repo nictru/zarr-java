@@ -16,6 +16,8 @@ import dev.zarr.zarrjava.v3.codec.core.BloscCodec;
 import dev.zarr.zarrjava.v3.codec.core.BytesCodec;
 import dev.zarr.zarrjava.v3.codec.core.ShardingIndexedCodec;
 import dev.zarr.zarrjava.v3.codec.core.TransposeCodec;
+import dev.zarr.zarrjava.v3.codec.core.VLenUtf8Codec;
+import dev.zarr.zarrjava.utils.Utils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -1051,5 +1053,84 @@ public class ZarrV3Test extends ZarrTest {
         Array reopenedArray = Array.open(storeHandle);
         ucar.ma2.Array readData = reopenedArray.read();
         assertIsTestdata(readData, dataType);
+    }
+
+    @Test
+    public void testStringDtypeMetadataParsing() throws IOException, ZarrException {
+        StoreHandle storeHandle = new FilesystemStore(TESTDATA).resolve("anndata_vlen_v3", "obs", "_index");
+        Array array = Array.open(storeHandle);
+        Assertions.assertEquals(DataType.STRING, array.metadata().dataType);
+        Assertions.assertEquals("", array.metadata().parsedFillValue());
+        Assertions.assertEquals(2, array.metadata().codecs.length);
+        Assertions.assertInstanceOf(VLenUtf8Codec.class, array.metadata().codecs[0]);
+    }
+
+    @Test
+    public void testReadAnnDataObsIndexV3() throws IOException, ZarrException {
+        StoreHandle storeHandle = new FilesystemStore(TESTDATA).resolve("anndata_vlen_v3", "obs", "_index");
+        ucar.ma2.Array data = Array.open(storeHandle).read();
+        Assertions.assertEquals(20, data.getSize());
+        Object[] values = (Object[]) data.get1DJavaArray(ucar.ma2.DataType.OBJECT);
+        for (int i = 0; i < values.length; i++) {
+            Assertions.assertEquals("cell_" + i, values[i]);
+        }
+    }
+
+    @Test
+    public void testReadAnnDataCategoricalCategoriesV3() throws IOException, ZarrException {
+        StoreHandle storeHandle = new FilesystemStore(TESTDATA).resolve("anndata_vlen_v3", "obs", "cluster", "categories");
+        ucar.ma2.Array data = Array.open(storeHandle).read();
+        Object[] values = (Object[]) data.get1DJavaArray(ucar.ma2.DataType.OBJECT);
+        Assertions.assertArrayEquals(new Object[]{"A", "B", "C"}, values);
+    }
+
+    @Test
+    public void testLegacyVlenUtf8DataTypeAlias() throws IOException, ZarrException {
+        String json = new String(Files.readAllBytes(
+                TESTDATA.resolve("anndata_vlen_v3").resolve("obs").resolve("_index").resolve(ZARR_JSON)))
+                .replace("\"data_type\": \"string\"", "\"data_type\": \"vlen-utf8\"");
+        ArrayMetadata metadata = Node.makeObjectMapper().readValue(json, ArrayMetadata.class);
+        Assertions.assertEquals(DataType.STRING, metadata.dataType);
+        Assertions.assertTrue(Node.makeObjectWriter().writeValueAsString(metadata).contains("\"data_type\" : \"string\""));
+    }
+
+    @Test
+    public void testStringDtypeRejectsBytesCodec() {
+        Assertions.assertThrows(ZarrException.class, () -> Array.metadataBuilder()
+                .withShape(3)
+                .withDataType(DataType.STRING)
+                .withChunkShape(3)
+                .withCodecs(new BytesCodec())
+                .build());
+    }
+
+    @Test
+    public void testCreateStringVlenRoundTrip() throws IOException, ZarrException {
+        StoreHandle storeHandle = new FilesystemStore(TESTOUTPUT).resolve("v3_string_vlen_roundtrip");
+        String[] original = {"one", "", "drei", "ü✓", "five"};
+
+        Array array = Array.create(
+                storeHandle,
+                Array.metadataBuilder()
+                        .withShape(original.length)
+                        .withDataType(DataType.STRING)
+                        .withChunkShape(2)
+                        .withCodecs(c -> c.withZstd())
+                        .build()
+        );
+        array.write(ucar.ma2.Array.makeObjectArray(
+                ucar.ma2.DataType.OBJECT, String.class, new int[]{original.length}, original));
+
+        String zarrJson = new String(Utils.toArray(storeHandle.resolve(ZARR_JSON).readNonNull()));
+        Assertions.assertTrue(zarrJson.contains("\"data_type\" : \"string\""), zarrJson);
+        Assertions.assertTrue(zarrJson.contains("\"name\" : \"vlen-utf8\""), zarrJson);
+        Assertions.assertTrue(zarrJson.contains("\"fill_value\" : \"\""), zarrJson);
+
+        Array reopened = Array.open(storeHandle);
+        Object[] decoded = (Object[]) reopened.read().get1DJavaArray(ucar.ma2.DataType.OBJECT);
+        Assertions.assertArrayEquals(original, decoded);
+
+        Object[] slice = (Object[]) reopened.read(new long[]{1}, new long[]{3}).get1DJavaArray(ucar.ma2.DataType.OBJECT);
+        Assertions.assertArrayEquals(new Object[]{"", "drei", "ü✓"}, slice);
     }
 }
